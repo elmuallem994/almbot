@@ -1,0 +1,15 @@
+Error sending video: Timed out
+Error sending video (Attempt 1): Timed out
+Error sending video (Attempt 1): Timed out
+Error sending video (Attempt 1): Timed out
+Error sending video (Attempt 2): Timed out
+Error sending video (Attempt 3): Timed out
+Error sending video (Attempt 1): Timed out
+Error sending video (Attempt 1): Timed out
+Error sending video (Attempt 1): Timed out
+Error sending video: Timed out
+Error sending video: Timed out
+Error sending video: Timed out
+❌ خطأ أثناء إرسال الفيديو: Timed out
+❌ خطأ أثناء إرسال الفيديو: Timed out
+🔹 يحتاج الفيديو مزيدًا من الوقت لأنه كبير: Timed out
