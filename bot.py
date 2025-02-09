@@ -7,8 +7,38 @@ import asyncio
 import requests
 
 
+from googleapiclient.discovery import build
+
 # 🔹 ضع هنا توكن البوت الخاص بك
 TOKEN = "8012936074:AAFH1E_EkUgnoXG_kz-nTvnbLnvcezTpgcg"
+
+# 🔹 ضع مفتاح YouTube API هنا (لا تشاركه علنًا)
+YOUTUBE_API_KEY = "AIzaSyAHqf88q04r7a9DThE_JvqyvD1FH_Ge-sc"
+
+# ✅ إنشاء كائن YouTube API
+youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
+
+def get_video_info(video_id):
+    """🔍 جلب معلومات فيديو YouTube"""
+    try:
+        request = youtube.videos().list(
+            part="snippet,contentDetails",
+            id=video_id
+        )
+        response = request.execute()
+
+        if "items" in response and len(response["items"]) > 0:
+            video = response["items"][0]
+            title = video["snippet"]["title"]
+            description = video["snippet"]["description"][:300] + "..."  # اختصار الوصف
+            thumbnail = video["snippet"]["thumbnails"]["high"]["url"]
+            return title, description, thumbnail
+        else:
+            return None, None, None
+    except Exception as e:
+        print(f"❌ خطأ في جلب البيانات: {e}")
+        return None, None, None
+
 
 
 # ✅ تخزين الروابط لمنع فقدان البيانات أثناء التحميل
@@ -39,9 +69,29 @@ async def receive_link(update: Update, context: CallbackContext) -> None:
         if expanded_url:
             url = expanded_url  # استخدم الرابط الحقيقي بدلاً من المختصر
 
-    # 🔹 التحقق مما إذا كان الرابط مدعومًا
-    if any(platform in url for platform in ["youtube.com", "youtu.be", "facebook.com", "fb.watch",
-                                            "instagram.com", "tiktok.com", "twitter.com", "pinterest.com"]):
+    # 🔹 التحقق مما إذا كان الرابط من YouTube
+    if "youtube.com" in url or "youtu.be" in url:
+        video_id = url.split("v=")[-1] if "v=" in url else url.split("/")[-1]
+        title, description, thumbnail = get_video_info(video_id)  # جلب معلومات الفيديو من API
+
+        if title:
+            unique_id = str(uuid.uuid4())[:8]
+            link_storage[unique_id] = url  
+
+            keyboard = [
+                [InlineKeyboardButton("🎥 تحميل الفيديو", callback_data=f"video|{unique_id}")],
+                [InlineKeyboardButton("🎵 تحميل الصوت فقط", callback_data=f"audio|{unique_id}")],
+                [InlineKeyboardButton("❌ إلغاء التحميل", callback_data="cancel_download")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            message = f"🎬 **العنوان:** {title}\n📜 **الوصف:** {description}"
+            await update.message.reply_photo(photo=thumbnail, caption=message, reply_markup=reply_markup)
+        else:
+            await update.message.reply_text("⚠ لم يتم العثور على الفيديو!")
+
+    # 🔹 باقي المنصات تبقى كما هي
+    elif any(platform in url for platform in ["facebook.com", "fb.watch", "instagram.com", "tiktok.com", "twitter.com", "pinterest.com"]):
         unique_id = str(uuid.uuid4())[:8]
         link_storage[unique_id] = url  
 
@@ -55,6 +105,7 @@ async def receive_link(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text("🔽 اختر نوع التحميل:", reply_markup=reply_markup)
     else:
         await update.message.reply_text("⚠ هذا الرابط غير مدعوم حالياً.")
+
 
 # 🎥 تحميل الفيديو
 async def download_video(update: Update, context: CallbackContext):
@@ -90,6 +141,7 @@ async def handle_video_download(query, url, unique_id):
         "retries": 30,
         "fragment_retries": 30,
         "hls_prefer_native": True,
+        "cookiefile": "cookies.txt"  # إضافة ملف الكوكيز
      }
     elif "facebook.com" in url or "fb.watch" in url:
      ydl_opts = {
@@ -110,6 +162,7 @@ async def handle_video_download(query, url, unique_id):
         "retries": 30,
         "fragment_retries": 30,
         "hls_prefer_native": True,
+        "cookiefile": "cookies.txt"  # إضافة ملف الكوكيز
      }
 
 
