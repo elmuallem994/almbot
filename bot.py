@@ -80,18 +80,20 @@ async def handle_video_download(query, url, unique_id):
         os.remove(output_video)
 
     ydl_opts = {
-    "format": "bestvideo[height<=480]+bestaudio/best[height<=480]",  
-    "merge_output_format": "mp4",
-    "outtmpl": output_video,
-    "socket_timeout": 3600,
-    "retries": 30,
-    "fragment_retries": 30,
-    "hls_prefer_native": True,
-    "geo_bypass": True,  # ✅ تخطي القيود الجغرافية
-}
-
-
-
+        "format": "best[height<=480]",  # تحميل بجودة 480p لتجنب القيود
+        "merge_output_format": "mp4",
+        "outtmpl": output_video,
+        "socket_timeout": 3600,
+        "retries": 30,
+        "fragment_retries": 30,
+        "hls_prefer_native": True,
+        "noplaylist": True,  # تأكد من تحميل الفيديو فقط وليس قائمة تشغيل
+        "ignoreerrors": True,  # تجاوز الأخطاء
+        "no_warnings": True,  # منع إظهار التحذيرات
+        "force_generic_extractor": True,  # إجبار yt-dlp على استخدام استخراج عام
+        "geo_bypass": True,  # تجاوز القيود الجغرافية
+        "quiet": True  # تقليل الإخراج لتجنب إزعاج المستخدم
+    }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -114,9 +116,10 @@ async def handle_video_download(query, url, unique_id):
 
     finally:
         if unique_id in send_locks:
-            del send_locks[unique_id]
+            del send_locks[unique_id]  # 🔹 إزالة القفل بعد الإرسال
         if os.path.exists(output_video):
             os.remove(output_video)
+
 
 # 📤 إرسال الفيديو بعد التحقق من حجمه
 async def send_video(query, video_path):
