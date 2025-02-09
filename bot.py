@@ -80,14 +80,16 @@ async def handle_video_download(query, url, unique_id):
         os.remove(output_video)
 
     ydl_opts = {
-    "format": "worstvideo+worstaudio/worst",  # ✅ تحميل أقل جودة متاحة
+    "format": "bestvideo[height<=480]+bestaudio/best[height<=480]",  
     "merge_output_format": "mp4",
     "outtmpl": output_video,
     "socket_timeout": 3600,
     "retries": 30,
     "fragment_retries": 30,
     "hls_prefer_native": True,
+    "geo_bypass": True,  # ✅ تخطي القيود الجغرافية
 }
+
 
 
 
