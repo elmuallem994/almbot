@@ -79,6 +79,7 @@ async def handle_video_download(query, url, unique_id):
     if os.path.exists(output_video):
         os.remove(output_video)
 
+    # ✅ إعدادات تحميل الفيديو
     ydl_opts = {
         "format": "best[height<=480]",  # تحميل بجودة 480p لتجنب القيود
         "merge_output_format": "mp4",
@@ -112,7 +113,52 @@ async def handle_video_download(query, url, unique_id):
                 await send_video(query, output_video)
 
     except Exception as e:
-        await query.edit_message_text(f"❌ حدث خطأ أثناء تحميل الفيديو: {str(e)}")
+        print(f"❌ خطأ أثناء التحميل بدون كوكيز: {e}")
+        await query.edit_message_text("⚠ لم يتمكن البوت من تحميل الفيديو، جارٍ إعادة المحاولة...")
+
+        # 🔄 المحاولة باستخدام كوكيز المتصفح
+        await retry_with_browser_cookies(query, url, unique_id)
+
+    finally:
+        if unique_id in send_locks:
+            del send_locks[unique_id]  # 🔹 إزالة القفل بعد الإرسال
+        if os.path.exists(output_video):
+            os.remove(output_video)
+
+async def retry_with_browser_cookies(query, url, unique_id):
+    """📌 إعادة المحاولة باستخدام كوكيز المتصفح"""
+    output_video = f"downloads/{unique_id}.mp4"
+
+    ydl_opts = {
+        "format": "best[height<=480]",
+        "merge_output_format": "mp4",
+        "outtmpl": output_video,
+        "socket_timeout": 3600,
+        "retries": 30,
+        "fragment_retries": 30,
+        "hls_prefer_native": True,
+        "noplaylist": True,
+        "ignoreerrors": True,
+        "no_warnings": True,
+        "force_generic_extractor": True,
+        "geo_bypass": True,
+        "quiet": True,
+        "cookiesfrombrowser": ("chrome",)  # ✅ تحميل الكوكيز تلقائيًا من متصفح Chrome
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+
+        if os.path.exists(output_video):
+            await query.edit_message_text("✅ تم تحميل الفيديو باستخدام كوكيز المتصفح! 📤")
+            await asyncio.sleep(1)
+
+            async with send_locks[unique_id]:
+                await send_video(query, output_video)
+
+    except Exception as e:
+        await query.edit_message_text(f"❌ فشل تحميل الفيديو حتى مع كوكيز المتصفح: {str(e)}")
 
     finally:
         if unique_id in send_locks:
