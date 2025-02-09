@@ -93,7 +93,8 @@ async def handle_video_download(query, url, unique_id):
         "force_generic_extractor": True,  # إجبار yt-dlp على استخدام استخراج عام
         "geo_bypass": True,  # تجاوز القيود الجغرافية
         "quiet": True,  # تقليل الإخراج لتجنب إزعاج المستخدم
-        "cookiesfrombrowser": ("chrome",)  # ✅ استخدام كوكيز المتصفح مباشرة
+        "cookiefile": "cookies.txt"
+
     }
 
     try:
