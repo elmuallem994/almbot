@@ -5,41 +5,13 @@ import os
 import uuid
 import asyncio
 import requests
+import re
 
 
-from googleapiclient.discovery import build
+
 
 # 🔹 ضع هنا توكن البوت الخاص بك
 TOKEN = "8012936074:AAFH1E_EkUgnoXG_kz-nTvnbLnvcezTpgcg"
-
-# 🔹 ضع مفتاح YouTube API هنا (لا تشاركه علنًا)
-YOUTUBE_API_KEY = "AIzaSyAHqf88q04r7a9DThE_JvqyvD1FH_Ge-sc"
-
-# ✅ إنشاء كائن YouTube API
-youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
-
-def get_video_info(video_id):
-    """🔍 جلب معلومات فيديو YouTube"""
-    try:
-        request = youtube.videos().list(
-            part="snippet,contentDetails",
-            id=video_id
-        )
-        response = request.execute()
-
-        if "items" in response and len(response["items"]) > 0:
-            video = response["items"][0]
-            title = video["snippet"]["title"]
-            description = video["snippet"]["description"][:300] + "..."  # اختصار الوصف
-            thumbnail = video["snippet"]["thumbnails"]["high"]["url"]
-            return title, description, thumbnail
-        else:
-            return None, None, None
-    except Exception as e:
-        print(f"❌ خطأ في جلب البيانات: {e}")
-        return None, None, None
-
-
 
 # ✅ تخزين الروابط لمنع فقدان البيانات أثناء التحميل
 link_storage = {}
@@ -51,47 +23,24 @@ send_locks = {}
 async def start(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text("👋 أهلاً بك! أرسل لي رابط فيديو وسأقوم بتحميله لك.")
 
-# 🔍 دالة لفك اختصار روابط Pinterest
-def expand_pinterest_url(short_url):
-    try:
-        response = requests.head(short_url, allow_redirects=True)
-        return response.url  # الحصول على الرابط الحقيقي بعد إعادة التوجيه
-    except requests.RequestException as e:
-        return None
-
 # 📥 استقبال الروابط وتحليلها
 async def receive_link(update: Update, context: CallbackContext) -> None:
     url = update.message.text.strip()
 
-    # 🔹 إذا كان الرابط من Pinterest ولكنه مختصر، قم بفك الاختصار
-    if "pin.it" in url:
-        expanded_url = expand_pinterest_url(url)
-        if expanded_url:
-            url = expanded_url  # استخدم الرابط الحقيقي بدلاً من المختصر
+    # 🔹 استخراج Video ID من رابط YouTube
+    def extract_video_id(url):
+        pattern = r"(?:v=|\/)([0-9A-Za-z_-]{11}).*"
+        match = re.search(pattern, url)
+        return match.group(1) if match else None
 
-    # 🔹 التحقق مما إذا كان الرابط من YouTube
     if "youtube.com" in url or "youtu.be" in url:
-        video_id = url.split("v=")[-1] if "v=" in url else url.split("/")[-1]
-        title, description, thumbnail = get_video_info(video_id)  # جلب معلومات الفيديو من API
+        video_id = extract_video_id(url)
+        print(f"🔍 Video ID Extracted: {video_id}")  # ✅ التحقق من استخراج الـ ID 
+        
+        if not video_id:
+            await update.message.reply_text("⚠ لم يتم استخراج معرف الفيديو، تأكد من صحة الرابط!")
+            return
 
-        if title:
-            unique_id = str(uuid.uuid4())[:8]
-            link_storage[unique_id] = url  
-
-            keyboard = [
-                [InlineKeyboardButton("🎥 تحميل الفيديو", callback_data=f"video|{unique_id}")],
-                [InlineKeyboardButton("🎵 تحميل الصوت فقط", callback_data=f"audio|{unique_id}")],
-                [InlineKeyboardButton("❌ إلغاء التحميل", callback_data="cancel_download")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            message = f"🎬 **العنوان:** {title}\n📜 **الوصف:** {description}"
-            await update.message.reply_photo(photo=thumbnail, caption=message, reply_markup=reply_markup)
-        else:
-            await update.message.reply_text("⚠ لم يتم العثور على الفيديو!")
-
-    # 🔹 باقي المنصات تبقى كما هي
-    elif any(platform in url for platform in ["facebook.com", "fb.watch", "instagram.com", "tiktok.com", "twitter.com", "pinterest.com"]):
         unique_id = str(uuid.uuid4())[:8]
         link_storage[unique_id] = url  
 
@@ -105,7 +54,6 @@ async def receive_link(update: Update, context: CallbackContext) -> None:
         await update.message.reply_text("🔽 اختر نوع التحميل:", reply_markup=reply_markup)
     else:
         await update.message.reply_text("⚠ هذا الرابط غير مدعوم حالياً.")
-
 
 # 🎥 تحميل الفيديو
 async def download_video(update: Update, context: CallbackContext):
@@ -131,38 +79,15 @@ async def handle_video_download(query, url, unique_id):
     if os.path.exists(output_video):
         os.remove(output_video)
 
-     # ✅ تحديد تنسيق الجودة بناءً على المنصة
-    if "youtube.com" in url or "youtu.be" in url:
-     ydl_opts = {
-        "format": "bestvideo[height<=480]+bestaudio/best[height<=480]",  # تحميل بجودة 480p ليوتيوب
+    ydl_opts = {
+        "format": "bestvideo[height<=480]+bestaudio/best[height<=480]",  
         "merge_output_format": "mp4",
         "outtmpl": output_video,
         "socket_timeout": 3600,
         "retries": 30,
         "fragment_retries": 30,
         "hls_prefer_native": True,
-     }
-    elif "facebook.com" in url or "fb.watch" in url:
-     ydl_opts = {
-        "format": "best",  # تحميل أفضل جودة متاحة دون قيود على الدقة
-        "merge_output_format": "mp4",
-        "outtmpl": output_video,
-        "socket_timeout": 3600,
-        "retries": 30,
-        "fragment_retries": 30,
-        "hls_prefer_native": True,
-     }
-    else:
-     ydl_opts = {
-        "format": "bestvideo+bestaudio/best",  # تحميل أعلى جودة لباقي المنصات
-        "merge_output_format": "mp4",
-        "outtmpl": output_video,
-        "socket_timeout": 3600,
-        "retries": 30,
-        "fragment_retries": 30,
-        "hls_prefer_native": True,
-     }
-
+    }
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -185,45 +110,32 @@ async def handle_video_download(query, url, unique_id):
 
     finally:
         if unique_id in send_locks:
-            del send_locks[unique_id]  # 🔹 إزالة القفل بعد الإرسال
+            del send_locks[unique_id]
         if os.path.exists(output_video):
             os.remove(output_video)
-
-
-# 📤 إرسال الفيديو بمحاولة واحدة فقط
-MAX_TELEGRAM_VIDEO_SIZE = 50 * 1024 * 1024  # 50MB بالبايت
 
 # 📤 إرسال الفيديو بعد التحقق من حجمه
 async def send_video(query, video_path):
     """إرسال الفيديو مرة واحدة فقط بعد التحقق من الحجم"""
     
-    file_size = os.path.getsize(video_path)  # الحصول على حجم الفيديو بالبايت
+    file_size = os.path.getsize(video_path)
     file_size_mb = file_size / (1024 * 1024)  # تحويل الحجم إلى MB
     
-    # ✅ إذا كان الفيديو أكبر من 50MB، لا يتم إرساله
     if file_size_mb > 50:
-        await query.message.reply_text(
-            f"⚠ الفيديو كبير جدًا ({file_size_mb:.2f}MB)، لا يمكن إرساله عبر تيليغرام."
-        )
-        return  # إيقاف التنفيذ
+        await query.message.reply_text(f"⚠ الفيديو كبير جدًا ({file_size_mb:.2f}MB)، لا يمكن إرساله عبر تيليغرام.")
+        return
 
     try:
-        # ✅ إذا كان الحجم أقل من 50MB، يتم الإرسال
         await query.message.reply_text(f"📦 حجم الفيديو: {file_size_mb:.2f}MB، جارٍ الإرسال... ⏳")
 
         with open(video_path, "rb") as video_file:
             await query.message.reply_video(video=video_file)
 
-        await asyncio.sleep(2)  # تأخير بسيط لمنع الحظر
+        await asyncio.sleep(2)
         await query.message.reply_text("✅ تم إرسال الفيديو بنجاح! 🎉")
 
     except Exception:
-        # ✅ تغيير الرسالة عند حدوث خطأ أثناء الإرسال
-        await query.message.reply_text(
-            "⏳ الفيديو الذي تحاول إرساله قد يكون كبيرًا أو الاتصال بطيء، يرجى الانتظار قليلاً..."
-        )
-
-
+        await query.message.reply_text("⏳ الفيديو الذي تحاول إرساله قد يكون كبيرًا أو الاتصال بطيء، يرجى الانتظار قليلاً...")
 
 # 🎵 تحميل الصوت
 async def download_audio(update: Update, context: CallbackContext):
@@ -239,12 +151,10 @@ async def download_audio(update: Update, context: CallbackContext):
 
     await query.edit_message_text("⏳ جارٍ تحميل الصوت، الرجاء الانتظار...")
 
-    output_audio = "downloads/audio"
-    final_audio = "downloads/final_audio.mp3"
+    output_audio = "downloads/audio.mp3"
 
-    for file in [output_audio + ".mp3", output_audio + ".m4a", final_audio]:
-        if os.path.exists(file):
-            os.remove(file)
+    if os.path.exists(output_audio):
+        os.remove(output_audio)
 
     ydl_opts = {
         "format": "bestaudio/best",
@@ -259,47 +169,22 @@ async def download_audio(update: Update, context: CallbackContext):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        await asyncio.sleep(1.5)
-
-        downloaded_files = [f for f in os.listdir("downloads") if f.startswith("audio") and f.endswith((".mp3", ".m4a", ".webm"))]
-        if not downloaded_files:
-            raise Exception("⚠ لم يتم العثور على الملف الصوتي بعد التحميل!")
-
-        downloaded_audio = os.path.join("downloads", downloaded_files[0])
-
-        if not downloaded_audio.endswith(".mp3"):
-            converted_audio = downloaded_audio.rsplit(".", 1)[0] + ".mp3"
-            os.system(f'ffmpeg -i "{downloaded_audio}" -vn -acodec libmp3lame "{converted_audio}" -y')
-            os.remove(downloaded_audio)
-            downloaded_audio = converted_audio
-
-        os.rename(downloaded_audio, final_audio)
-
-        if os.path.exists(final_audio) and os.path.getsize(final_audio) > 100 * 1024:
-            await query.edit_message_text("✅ تم تحميل الصوت! جارٍ الإرسال... 🎵")
-            with open(final_audio, "rb") as audio_file:
-                await query.message.reply_audio(audio=audio_file)
-        else:
-            raise Exception("⚠ الملف صغير جدًا أو غير صالح للإرسال!")
+        await query.edit_message_text("✅ تم تحميل الصوت! جارٍ الإرسال... 🎵")
+        with open(output_audio, "rb") as audio_file:
+            await query.message.reply_audio(audio=audio_file)
 
     except Exception as e:
         await query.edit_message_text(f"❌ حدث خطأ أثناء تحميل الصوت: {str(e)}")
-        log_error(f"Error downloading audio: {e}")
 
     finally:
-        if os.path.exists(final_audio):
-            os.remove(final_audio)
+        if os.path.exists(output_audio):
+            os.remove(output_audio)
 
 # ❌ إلغاء التحميل
 async def cancel_download(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
     await query.edit_message_text("❌ تم إلغاء التحميل بنجاح!")
-
-# 📝 تسجيل الأخطاء في ملف
-def log_error(error_message):
-    with open("log.txt", "a", encoding="utf-8") as log_file:
-        log_file.write(f"{error_message}\n")
 
 # 🚀 تشغيل البوت
 def main():
