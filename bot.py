@@ -141,7 +141,6 @@ async def handle_video_download(query, url, unique_id):
         "retries": 30,
         "fragment_retries": 30,
         "hls_prefer_native": True,
-        "cookiefile": "cookies.txt"  # إضافة ملف الكوكيز
      }
     elif "facebook.com" in url or "fb.watch" in url:
      ydl_opts = {
@@ -162,7 +161,6 @@ async def handle_video_download(query, url, unique_id):
         "retries": 30,
         "fragment_retries": 30,
         "hls_prefer_native": True,
-        "cookiefile": "cookies.txt"  # إضافة ملف الكوكيز
      }
 
 
