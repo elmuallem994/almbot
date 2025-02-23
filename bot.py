@@ -396,31 +396,6 @@ async def download_audio(update: Update, context: CallbackContext):
         if os.path.exists(final_audio):
             os.remove(final_audio)
 
-
-
-async def watch_ad_and_send_audio(update: Update, context: CallbackContext):
-    query = update.callback_query
-    await query.answer()
-
-    _, unique_id = query.data.split("|")
-
-    # ✅ تسجيل أن المستخدم قد ضغط على مشاهدة الإعلان
-    watched_ads[unique_id] = True  
-
-    # إرسال رابط الإعلان
-    await query.message.reply_text(f"🔗 اضغط على الرابط لمشاهدة الإعلان: {ADSTERRE_AD_URL}")
-
-    # ✅ إظهار زر "تم مشاهدة الإعلان" بعد 10 ثوانٍ
-    await asyncio.sleep(10)
-
-    keyboard = [
-        [InlineKeyboardButton("✅ تم مشاهدة الإعلان، أرسل الصوت", callback_data=f"send_audio|{unique_id}")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await query.message.reply_text("✅ بعد مشاهدة الإعلان، اضغط على الزر لإرسال الصوت:", reply_markup=reply_markup)
-
-
 async def send_audio_after_ad(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
@@ -451,6 +426,31 @@ async def send_audio_after_ad(update: Update, context: CallbackContext):
 
     else:
         await query.message.reply_text("⚠ يجب مشاهدة الإعلان قبل استلام الصوت!")
+
+
+async def watch_ad_and_send_audio(update: Update, context: CallbackContext):
+    query = update.callback_query
+    await query.answer()
+
+    _, unique_id = query.data.split("|")
+
+    # ✅ تسجيل أن المستخدم قد ضغط على مشاهدة الإعلان
+    watched_ads[unique_id] = True  
+
+    # إرسال رابط الإعلان
+    await query.message.reply_text(f"🔗 اضغط على الرابط لمشاهدة الإعلان: {ADSTERRE_AD_URL}")
+
+    # ✅ إظهار زر "تم مشاهدة الإعلان" بعد 10 ثوانٍ
+    await asyncio.sleep(10)
+
+    keyboard = [
+        [InlineKeyboardButton("✅ تم مشاهدة الإعلان، أرسل الصوت", callback_data=f"send_audio|{unique_id}")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.message.reply_text("✅ بعد مشاهدة الإعلان، اضغط على الزر لإرسال الصوت:", reply_markup=reply_markup)
+
+
 
 
 
