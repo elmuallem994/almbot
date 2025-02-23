@@ -263,13 +263,13 @@ async def send_video_after_ad(update: Update, context: CallbackContext):
         await query.edit_message_text("⚠ الملف غير موجود أو تم حذفه!")
         return
 
-    # التحقق مما إذا كان المستخدم قد ضغط على زر مشاهدة الإعلان
+    # **تحقق مما إذا كان المستخدم قد ضغط فعليًا على "تم مشاهدة الإعلان"**
     if watched_ads.get(unique_id, False):
         await query.edit_message_text("📤 جارٍ إرسال الفيديو... ⏳")
         await send_video(query, video_path)
     else:
-        await query.edit_message_text("⚠ يجب مشاهدة الإعلان قبل استلام الفيديو!")
-       
+        await query.message.reply_text("⚠ لم يتم تأكيد مشاهدة الإعلان! يرجى المحاولة مرة أخرى.")
+    
 
 async def watch_ad_and_send_video(update: Update, context: CallbackContext):
     query = update.callback_query
@@ -277,22 +277,18 @@ async def watch_ad_and_send_video(update: Update, context: CallbackContext):
 
     _, unique_id = query.data.split("|")
 
-    # تسجيل أن المستخدم ضغط على الإعلان
-    watched_ads[unique_id] = True
-
-    # إرسال رابط الإعلان للمستخدم
+    # إرسال رابط الإعلان فقط، دون تسجيل أنه تم مشاهدته
     await query.message.reply_text(f"🔗 اضغط على الرابط لمشاهدة الإعلان: {ADSTERRE_AD_URL}")
 
-    # إظهار زر تأكيد المشاهدة بعد فترة قصيرة
+    # عرض زر "تم مشاهدة الإعلان" بعد 10 ثوانٍ
+    await asyncio.sleep(10)
+
     keyboard = [
         [InlineKeyboardButton("✅ تم مشاهدة الإعلان، أرسل الفيديو", callback_data=f"send_video|{unique_id}")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await asyncio.sleep(10)  # انتظار 10 ثوانٍ (وقت افتراضي لمشاهدة الإعلان)
-
     await query.message.reply_text("✅ بعد مشاهدة الإعلان، اضغط على الزر لإرسال الفيديو:", reply_markup=reply_markup)
-
 
 
 # 🎵 تحميل الصوت
@@ -380,8 +376,9 @@ def main():
     app.add_handler(CallbackQueryHandler(download_video, pattern="video.*"))
     app.add_handler(CallbackQueryHandler(download_audio, pattern="audio.*"))
     app.add_handler(CallbackQueryHandler(cancel_download, pattern="cancel_download"))
-
+    app.add_handler(CallbackQueryHandler(watch_ad_and_send_video, pattern="watch_ad.*"))
     app.add_handler(CallbackQueryHandler(send_video_after_ad, pattern="send_video.*"))
+
 
 
 
