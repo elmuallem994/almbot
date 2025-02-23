@@ -317,10 +317,10 @@ async def download_audio(update: Update, context: CallbackContext):
 
     await query.edit_message_text("⏳ جارٍ تحميل الصوت، الرجاء الانتظار...")
 
-    output_audio = f"downloads/{unique_id}.%(ext)s"
+    output_audio = f"downloads/{unique_id}.%(ext)s"  # حفظ باسم مميز
     final_audio = f"downloads/{unique_id}.mp3"
 
-    # ✅ حذف أي ملفات سابقة بنفس الـ ID قبل التحميل
+    # حذف أي ملفات قديمة بنفس الـ ID قبل التحميل
     for file in os.listdir("downloads"):
         if file.startswith(unique_id):
             os.remove(os.path.join("downloads", file))
@@ -340,10 +340,10 @@ async def download_audio(update: Update, context: CallbackContext):
 
         await asyncio.sleep(1.5)
 
-        # ✅ طباعة الملفات بعد التحميل
+        # ✅ التأكد من وجود الملف بعد التحميل
         print("📂 الملفات الموجودة في مجلد التحميل:", os.listdir("downloads"))
 
-        # 🔍 البحث عن الملفات المحملة التي تبدأ بـ unique_id
+        # البحث عن الملفات المحملة التي تبدأ بـ unique_id
         downloaded_files = [f for f in os.listdir("downloads") if f.startswith(unique_id)]
         if not downloaded_files:
             raise Exception("⚠ لم يتم العثور على الملف الصوتي بعد التحميل!")
@@ -381,18 +381,18 @@ async def download_audio(update: Update, context: CallbackContext):
 async def send_audio_after_ad(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
-    
+
     _, unique_id = query.data.split("|")
     audio_path = f"downloads/{unique_id}.mp3"
 
+    # ✅ التحقق من وجود الملف قبل إرساله
     if not os.path.exists(audio_path):
         await query.edit_message_text("⚠ الملف غير موجود أو تم حذفه!")
         return
 
-    # ✅ التحقق مما إذا كان المستخدم قد ضغط على "تم مشاهدة الإعلان"
     if watched_ads.get(unique_id, False):
         await query.edit_message_text("📤 جارٍ إرسال الصوت... ⏳")
-        
+
         try:
             with open(audio_path, "rb") as audio_file:
                 await query.message.reply_audio(audio=audio_file)
