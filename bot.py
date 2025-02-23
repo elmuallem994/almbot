@@ -200,23 +200,19 @@ async def handle_video_download(query, url, unique_id):
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             await query.message.reply_text("🔽 لمتابعة استلام الفيديو، يرجى مشاهدة الإعلان:", reply_markup=reply_markup)
+                
+                # ✅ تسجيل أن المستخدم لم يشاهد الإعلان بعد
+            watched_ads[unique_id] = False  
 
-            # ✅ إنشاء قفل خاص بهذا unique_id إذا لم يكن موجودًا
-            if unique_id not in send_locks:
-                send_locks[unique_id] = asyncio.Lock()
 
-            # ✅ تنفيذ الإرسال داخل القفل لتجنب التكرار
-            async with send_locks[unique_id]:
-                await send_video(query, output_video)
+           
 
     except Exception as e:
         await query.edit_message_text(f"❌ حدث خطأ أثناء تحميل الفيديو: {str(e)}")
 
     finally:
         if unique_id in send_locks:
-            del send_locks[unique_id]  # 🔹 إزالة القفل بعد الإرسال
-        if os.path.exists(output_video):
-            os.remove(output_video)
+            del send_locks[unique_id]
 
 
 # 📤 إرسال الفيديو بمحاولة واحدة فقط
@@ -252,6 +248,7 @@ async def send_video(query, video_path):
     except Exception as e:
         await query.message.reply_text(f"❌ حدث خطأ أثناء إرسال الفيديو: {str(e)}")
 
+
 async def send_video_after_ad(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
@@ -263,13 +260,15 @@ async def send_video_after_ad(update: Update, context: CallbackContext):
         await query.edit_message_text("⚠ الملف غير موجود أو تم حذفه!")
         return
 
-    # **تحقق مما إذا كان المستخدم قد ضغط فعليًا على "تم مشاهدة الإعلان"**
+    # **تحقق مما إذا كان المستخدم قد ضغط على "تم مشاهدة الإعلان"**
     if watched_ads.get(unique_id, False):
         await query.edit_message_text("📤 جارٍ إرسال الفيديو... ⏳")
         await send_video(query, video_path)
     else:
-        await query.message.reply_text("⚠ لم يتم تأكيد مشاهدة الإعلان! يرجى المحاولة مرة أخرى.")
-    
+        await query.message.reply_text("⚠ يجب مشاهدة الإعلان قبل استلام الفيديو!")
+ 
+
+
 
 async def watch_ad_and_send_video(update: Update, context: CallbackContext):
     query = update.callback_query
@@ -277,10 +276,10 @@ async def watch_ad_and_send_video(update: Update, context: CallbackContext):
 
     _, unique_id = query.data.split("|")
 
-    # إرسال رابط الإعلان فقط، دون تسجيل أنه تم مشاهدته
+    # إرسال رابط الإعلان فقط، دون تسجيل المشاهدة فورًا
     await query.message.reply_text(f"🔗 اضغط على الرابط لمشاهدة الإعلان: {ADSTERRE_AD_URL}")
 
-    # عرض زر "تم مشاهدة الإعلان" بعد 10 ثوانٍ
+    # إظهار زر "تم مشاهدة الإعلان" بعد 10 ثوانٍ
     await asyncio.sleep(10)
 
     keyboard = [
