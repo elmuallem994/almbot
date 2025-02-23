@@ -391,10 +391,7 @@ async def download_audio(update: Update, context: CallbackContext):
         await query.edit_message_text(f"❌ حدث خطأ أثناء تحميل الصوت: {str(e)}")
         log_error(f"Error downloading audio: {e}")
 
-    finally:
-        # 🔹 حذف الملف بعد الاستخدام لتوفير المساحة
-        if os.path.exists(final_audio):
-            os.remove(final_audio)
+    
 
 async def send_audio_after_ad(update: Update, context: CallbackContext):
     query = update.callback_query
