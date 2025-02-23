@@ -304,6 +304,7 @@ async def watch_ad_and_send_video(update: Update, context: CallbackContext):
 
 
 # 🎵 تحميل الصوت
+# 🎵 تحميل الصوت مع دعم الإعلان
 async def download_audio(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
@@ -321,7 +322,7 @@ async def download_audio(update: Update, context: CallbackContext):
 
     ydl_opts = {
         "format": "bestaudio/best",
-        "outtmpl": output_audio,
+        "outtmpl": output_audio,  
         "postprocessors": [
             {"key": "FFmpegExtractAudio", "preferredcodec": "mp3"},
             {"key": "FFmpegMetadata"}  
@@ -357,6 +358,7 @@ async def download_audio(update: Update, context: CallbackContext):
         await query.edit_message_text(f"❌ حدث خطأ أثناء تحميل الصوت: {str(e)}")
 
 
+# 📤 إرسال الصوت بعد تأكيد مشاهدة الإعلان
 async def send_audio_after_ad(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
@@ -385,20 +387,18 @@ async def send_audio_after_ad(update: Update, context: CallbackContext):
         await query.message.reply_text("⚠ يجب مشاهدة الإعلان قبل استلام الصوت!")
 
 
+# 📺 مطالبة المستخدم بمشاهدة الإعلان قبل إرسال الصوت
 async def watch_ad_and_send_audio(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
 
     _, unique_id = query.data.split("|")
 
-    # ✅ تسجيل أن المستخدم قد ضغط على مشاهدة الإعلان
     watched_ads[unique_id] = True  
 
-    # إرسال رابط الإعلان
     await query.message.reply_text(f"🔗 اضغط على الرابط لمشاهدة الإعلان: {ADSTERRE_AD_URL}")
 
-    # إظهار زر "تم مشاهدة الإعلان" بعد 10 ثوانٍ
-    await asyncio.sleep(10)
+    await asyncio.sleep(13)
 
     keyboard = [
         [InlineKeyboardButton("✅ تم مشاهدة الإعلان، أرسل الصوت", callback_data=f"send_audio|{unique_id}")]
@@ -431,6 +431,10 @@ def main():
     app.add_handler(CallbackQueryHandler(cancel_download, pattern="cancel_download"))
     app.add_handler(CallbackQueryHandler(watch_ad_and_send_video, pattern="watch_ad.*"))
     app.add_handler(CallbackQueryHandler(send_video_after_ad, pattern="send_video.*"))
+
+    app.add_handler(CallbackQueryHandler(watch_ad_and_send_audio, pattern="watch_ad_audio.*"))
+    app.add_handler(CallbackQueryHandler(send_audio_after_ad, pattern="send_audio.*"))
+
 
 
 
