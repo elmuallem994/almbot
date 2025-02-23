@@ -6,10 +6,14 @@ import uuid
 import asyncio
 import requests
 import re
-from pytube import YouTube
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+
+
+# 🔹 رابط الإعلان (استبدله برابط Adsterra أو أي شبكة إعلانية أخرى)
+ADSTERRE_AD_URL = "https://your-ad-network-link.com"
+
 
 # 🛠️ تحميل الفيديو إلى Google Drive والحصول على رابط المشاركة
 def upload_to_google_drive(file_path, file_name):
@@ -96,16 +100,36 @@ async def receive_link(update: Update, context: CallbackContext) -> None:
         unique_id = str(uuid.uuid4())[:8]
         link_storage[unique_id] = url  
 
+         # ✨ استبدال أزرار التحميل بأزرار الإعلان أولاً
         keyboard = [
-            [InlineKeyboardButton("🎥 تحميل الفيديو", callback_data=f"video|{unique_id}")],
-            [InlineKeyboardButton("🎵 تحميل الصوت فقط", callback_data=f"audio|{unique_id}")],
-            [InlineKeyboardButton("❌ إلغاء التحميل", callback_data="cancel_download")]
+            [InlineKeyboardButton("👀 مشاهدة إعلان", url=ADSTERRE_AD_URL)],
+            [InlineKeyboardButton("✅ تم مشاهدة الإعلان", callback_data=f"ad_done|{unique_id}")],
+            [InlineKeyboardButton("❌ إلغاء", callback_data="cancel_download")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await update.message.reply_text("🔽 اختر نوع التحميل:", reply_markup=reply_markup)
     else:
         await update.message.reply_text("⚠ هذا الرابط غير مدعوم حالياً.")
+
+
+async def ad_done(update: Update, context: CallbackContext):
+    query = update.callback_query
+    await query.answer()
+    _, unique_id = query.data.split("|")
+
+    await query.edit_message_text("⏳ يرجى الانتظار 10 ثوانٍ قبل أن يظهر زر التحميل...")
+    await asyncio.sleep(10)  # انتظار 10 ثوانٍ
+
+    keyboard = [
+        [InlineKeyboardButton("🎥 تحميل الفيديو", callback_data=f"video|{unique_id}")],
+        [InlineKeyboardButton("🎵 تحميل الصوت فقط", callback_data=f"audio|{unique_id}")],
+        [InlineKeyboardButton("❌ إلغاء التحميل", callback_data="cancel_download")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.message.reply_text("✅ الآن يمكنك تحميل الفيديو:", reply_markup=reply_markup)
+
 
 # 🎥 تحميل الفيديو
 async def download_video(update: Update, context: CallbackContext):
@@ -131,30 +155,30 @@ async def handle_video_download(query, url, unique_id):
     if os.path.exists(output_video):
         os.remove(output_video)
 
-  
-    # ✅ تعريف ydl_opts بقيمة افتراضية لتجنب الخطأ
-    ydl_opts = {}
-
-    # ✅ استخدام pytube إذا كان الفيديو من YouTube
+     # ✅ تحديد تنسيق الجودة بناءً على المنصة
     if "youtube.com" in url or "youtu.be" in url:
-        try:
-            yt = YouTube(url)
-            stream = yt.streams.filter(progressive=True, file_extension="mp4").first()
-            stream.download(filename=output_video)
+     ydl_opts = {
+        "format": "bestvideo+bestaudio/best",  
+        "merge_output_format": "mp4",
+        "outtmpl": output_video,
+        "socket_timeout": 3600,
+        "retries": 30,
+        "fragment_retries": 30,
+        "hls_prefer_native": True,
+        "noplaylist": True,  # تحميل فيديو واحد فقط وليس قائمة تشغيل
+        "force_generic_extractor": True,  # فرض استخدام yt-dlp بدون تسجيل الدخول
+        "quiet": False,  # عرض تفاصيل التحميل
+        "no-check-certificate": True,  # تجاوز مشاكل الشهادات
+        "sleep_interval": 2,  # تقليل سرعة الطلبات لمنع الحظر
+        "max_sleep_interval": 5,
+        "headers": {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
+        },
 
-            if os.path.exists(output_video):
-                await query.edit_message_text("✅ تم تحميل الفيديو من YouTube! جارٍ الإرسال... 📤")
-                await asyncio.sleep(1)
+        "progress_hooks": [lambda d: print(d)],  # تتبع التحميل
 
-                # ✅ قفل منع الإرسال المتكرر
-                if unique_id not in send_locks:
-                    send_locks[unique_id] = asyncio.Lock()
 
-                async with send_locks[unique_id]:
-                    await send_video(query, output_video)
-            return  # 🛑 الخروج من الدالة بعد تحميل الفيديو من YouTube
-        except Exception as e:
-            await query.edit_message_text(f"❌ حدث خطأ أثناء تحميل الفيديو من YouTube: {str(e)}")
+     }
 
     elif "facebook.com" in url or "fb.watch" in url:
      ydl_opts = {
@@ -324,6 +348,9 @@ def main():
     app.add_handler(CallbackQueryHandler(download_video, pattern="video.*"))
     app.add_handler(CallbackQueryHandler(download_audio, pattern="audio.*"))
     app.add_handler(CallbackQueryHandler(cancel_download, pattern="cancel_download"))
+
+    app.add_handler(CallbackQueryHandler(ad_done, pattern="ad_done.*"))
+
 
     print("✅ البوت يعمل الآن...")
     app.run_polling()
