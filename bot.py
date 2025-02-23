@@ -338,15 +338,17 @@ async def download_audio(update: Update, context: CallbackContext):
 
         # ✅ التأكد من أن الملف الصوتي قد تم تحميله بنجاح
         if os.path.exists(output_audio) and os.path.getsize(output_audio) > 100 * 1024:
-            await query.edit_message_text("✅ تم تحميل الصوت بنجاح! ⏳ جارٍ الإرسال... 🎵")
+            await query.edit_message_text("✅ تم تحميل الصوت! قبل الإرسال، يرجى مشاهدة الإعلان.")
 
-            with open(output_audio, "rb") as audio_file:
-                await query.message.reply_audio(audio=audio_file)
+            keyboard = [
+                [InlineKeyboardButton("👀 مشاهدة إعلان قبل الإرسال", callback_data=f"watch_ad_audio|{unique_id}")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
 
-            await query.message.reply_text("✅ تم إرسال الصوت بنجاح! 🎉")
+            await query.message.reply_text("🔽 لمتابعة استلام الصوت، يرجى مشاهدة الإعلان:", reply_markup=reply_markup)
 
-        else:
-            await query.edit_message_text("⚠ لم يتم العثور على الملف الصوتي بعد التحميل!")
+            # ✅ تسجيل أن المستخدم لم يشاهد الإعلان بعد
+            watched_ads[unique_id] = False  
 
     except Exception as e:
         await query.edit_message_text(f"❌ حدث خطأ أثناء تحميل الصوت: {str(e)}")
