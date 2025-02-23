@@ -110,14 +110,21 @@ async def handle_video_download(query, url, unique_id):
      # ✅ تحديد تنسيق الجودة بناءً على المنصة
     if "youtube.com" in url or "youtu.be" in url:
      ydl_opts = {
-        "format": "bestvideo[height<=480]+bestaudio/best[height<=480]",  # تحميل بجودة 480p ليوتيوب
+        "format": "bestvideo[height<=480]+bestaudio/best[height<=480]",  # تحميل بجودة 480p فقط
         "merge_output_format": "mp4",
         "outtmpl": output_video,
         "socket_timeout": 3600,
         "retries": 30,
         "fragment_retries": 30,
         "hls_prefer_native": True,
+        "noplaylist": True,  # تحميل فيديو واحد فقط وليس قائمة تشغيل
+        "force_generic_extractor": True,  # فرض استخدام yt-dlp بدون تسجيل الدخول
+        "quiet": False,  # عرض تفاصيل التحميل
+        "no-check-certificate": True,  # تجاوز مشاكل الشهادات
+        "sleep_interval": 2,  # تقليل سرعة الطلبات لمنع الحظر
+        "max_sleep_interval": 5,
      }
+
     elif "facebook.com" in url or "fb.watch" in url:
      ydl_opts = {
         "format": "best",  # تحميل أفضل جودة متاحة دون قيود على الدقة
