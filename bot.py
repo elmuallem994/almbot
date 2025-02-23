@@ -123,6 +123,10 @@ async def handle_video_download(query, url, unique_id):
         "no-check-certificate": True,  # تجاوز مشاكل الشهادات
         "sleep_interval": 2,  # تقليل سرعة الطلبات لمنع الحظر
         "max_sleep_interval": 5,
+        "noplaylist": True,  # تعطيل التحميل التلقائي لقوائم التشغيل
+        "headers": {"User-Agent": "Mozilla/5.0 (Linux; Android 10; Mobile)"},
+
+
      }
 
     elif "facebook.com" in url or "fb.watch" in url:
