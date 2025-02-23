@@ -191,8 +191,7 @@ async def handle_video_download(query, url, unique_id):
           
 
             keyboard = [
-                [InlineKeyboardButton("👀 مشاهدة إعلان قبل الإرسال", url=ADSTERRE_AD_URL)],
-                [InlineKeyboardButton("✅ تم مشاهدة الإعلان، أرسل الفيديو", callback_data=f"send_video|{unique_id}")],
+                [InlineKeyboardButton("👀 مشاهدة إعلان قبل الإرسال", url=ADSTERRE_AD_URL, callback_data=f"watch_ad|{unique_id}")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -264,6 +263,25 @@ async def send_video_after_ad(update: Update, context: CallbackContext):
 
     await send_video(query, video_path)
         
+
+async def watch_ad_and_send_video(update: Update, context: CallbackContext):
+    query = update.callback_query
+    await query.answer()
+
+    _, unique_id = query.data.split("|")
+    video_path = f"downloads/{unique_id}.mp4"
+
+    if not os.path.exists(video_path):
+        await query.edit_message_text("⚠ الملف غير موجود أو تم حذفه!")
+        return
+
+    await query.edit_message_text("⏳ يرجى الانتظار قليلًا بعد مشاهدة الإعلان...")
+
+    await asyncio.sleep(10)  # انتظار 10 ثوانٍ قبل إرسال الفيديو بعد النقر على الإعلان
+
+    await query.edit_message_text("📤 جارٍ إرسال الفيديو... ⏳")
+
+    await send_video(query, video_path)
 
 
 
@@ -353,7 +371,8 @@ def main():
     app.add_handler(CallbackQueryHandler(download_audio, pattern="audio.*"))
     app.add_handler(CallbackQueryHandler(cancel_download, pattern="cancel_download"))
 
-    app.add_handler(CallbackQueryHandler(send_video_after_ad, pattern="send_video.*"))
+    app.add_handler(CallbackQueryHandler(watch_ad_and_send_video, pattern="watch_ad.*"))
+
 
 
     print("✅ البوت يعمل الآن...")
