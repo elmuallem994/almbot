@@ -314,7 +314,7 @@ async def download_audio(update: Update, context: CallbackContext):
     if not url:
         await query.edit_message_text("⏳ جارٍ تحميل الصوت، الرجاء الانتظار...")
 
-    output_audio = f"downloads/{unique_id}"
+    output_audio = f"downloads/audio"
     final_audio = f"downloads/{unique_id}.mp3"  # تعديل الاسم ليكون فريدًا لكل تحميل
 
     for file in [output_audio + ".mp3", output_audio + ".m4a", final_audio]:
@@ -368,7 +368,10 @@ async def download_audio(update: Update, context: CallbackContext):
         log_error(f"Error downloading audio: {e}")
 
 
-  
+    finally:
+        if os.path.exists(final_audio):
+            os.remove(final_audio)
+
 
 # 📤 إرسال الصوت بعد مشاهدة الإعلان
 async def send_audio_after_ad(update: Update, context: CallbackContext):
