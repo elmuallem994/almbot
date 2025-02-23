@@ -12,7 +12,7 @@ from googleapiclient.http import MediaFileUpload
 
 
 # 🔹 رابط الإعلان (استبدله برابط Adsterra أو أي شبكة إعلانية أخرى)
-ADSTERRE_AD_URL = "https://your-ad-network-link.com"
+ADSTERRE_AD_URL = "https://www.effectiveratecpm.com/r50q8hi2?key=1f0319a4e683d308280685eab9185fd3"
 
 
 # 🛠️ تحميل الفيديو إلى Google Drive والحصول على رابط المشاركة
