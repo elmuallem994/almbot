@@ -131,7 +131,11 @@ async def handle_video_download(query, url, unique_id):
     if os.path.exists(output_video):
         os.remove(output_video)
 
-     # ✅ استخدام pytube إذا كان الفيديو من YouTube
+  
+    # ✅ تعريف ydl_opts بقيمة افتراضية لتجنب الخطأ
+    ydl_opts = {}
+
+    # ✅ استخدام pytube إذا كان الفيديو من YouTube
     if "youtube.com" in url or "youtu.be" in url:
         try:
             yt = YouTube(url)
@@ -148,7 +152,7 @@ async def handle_video_download(query, url, unique_id):
 
                 async with send_locks[unique_id]:
                     await send_video(query, output_video)
-
+            return  # 🛑 الخروج من الدالة بعد تحميل الفيديو من YouTube
         except Exception as e:
             await query.edit_message_text(f"❌ حدث خطأ أثناء تحميل الفيديو من YouTube: {str(e)}")
 
