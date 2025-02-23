@@ -359,6 +359,7 @@ async def download_audio(update: Update, context: CallbackContext):
 
 
 # 📤 إرسال الصوت بعد تأكيد مشاهدة الإعلان
+# 📤 إرسال الصوت بعد تأكيد مشاهدة الإعلان وحذفه بعد الإرسال
 async def send_audio_after_ad(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
@@ -379,6 +380,10 @@ async def send_audio_after_ad(update: Update, context: CallbackContext):
 
             await asyncio.sleep(2)  # تأخير بسيط لمنع الحظر
             await query.message.reply_text("✅ تم إرسال الصوت بنجاح! 🎉")
+
+            # ✅ حذف الملف بعد الإرسال لتوفير المساحة
+            os.remove(audio_path)
+            print(f"🗑 تم حذف الملف: {audio_path}")
 
         except Exception as e:
             await query.message.reply_text(f"❌ حدث خطأ أثناء إرسال الصوت: {str(e)}")
