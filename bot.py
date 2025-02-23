@@ -100,36 +100,16 @@ async def receive_link(update: Update, context: CallbackContext) -> None:
         unique_id = str(uuid.uuid4())[:8]
         link_storage[unique_id] = url  
 
-         # ✨ استبدال أزرار التحميل بأزرار الإعلان أولاً
         keyboard = [
-            [InlineKeyboardButton("👀 مشاهدة إعلان", url=ADSTERRE_AD_URL)],
-            [InlineKeyboardButton("✅ تم مشاهدة الإعلان", callback_data=f"ad_done|{unique_id}")],
-            [InlineKeyboardButton("❌ إلغاء", callback_data="cancel_download")]
+            [InlineKeyboardButton("🎥 تحميل الفيديو", callback_data=f"video|{unique_id}")],
+            [InlineKeyboardButton("🎵 تحميل الصوت فقط", callback_data=f"audio|{unique_id}")],
+            [InlineKeyboardButton("❌ إلغاء التحميل", callback_data="cancel_download")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await update.message.reply_text("🔽 اختر نوع التحميل:", reply_markup=reply_markup)
     else:
         await update.message.reply_text("⚠ هذا الرابط غير مدعوم حالياً.")
-
-
-async def ad_done(update: Update, context: CallbackContext):
-    query = update.callback_query
-    await query.answer()
-    _, unique_id = query.data.split("|")
-
-    await query.edit_message_text("⏳ يرجى الانتظار 10 ثوانٍ قبل أن يظهر زر التحميل...")
-    await asyncio.sleep(10)  # انتظار 10 ثوانٍ
-
-    keyboard = [
-        [InlineKeyboardButton("🎥 تحميل الفيديو", callback_data=f"video|{unique_id}")],
-        [InlineKeyboardButton("🎵 تحميل الصوت فقط", callback_data=f"audio|{unique_id}")],
-        [InlineKeyboardButton("❌ إلغاء التحميل", callback_data="cancel_download")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
-    await query.message.reply_text("✅ الآن يمكنك تحميل الفيديو:", reply_markup=reply_markup)
-
 
 # 🎥 تحميل الفيديو
 async def download_video(update: Update, context: CallbackContext):
@@ -207,8 +187,16 @@ async def handle_video_download(query, url, unique_id):
             ydl.download([url])
 
         if os.path.exists(output_video):
-            await query.edit_message_text("✅ تم تحميل الفيديو! جارٍ الإرسال... 📤")
-            await asyncio.sleep(1)
+            await query.edit_message_text("✅ تم تحميل الفيديو! قبل الإرسال، يرجى مشاهدة الإعلان.")
+          
+
+            keyboard = [
+                [InlineKeyboardButton("👀 مشاهدة إعلان قبل الإرسال", url=ADSTERRE_AD_URL)],
+                [InlineKeyboardButton("✅ تم مشاهدة الإعلان، أرسل الفيديو", callback_data=f"send_video|{unique_id}")],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await query.message.reply_text("🔽 لمتابعة استلام الفيديو، يرجى مشاهدة الإعلان:", reply_markup=reply_markup)
 
             # ✅ إنشاء قفل خاص بهذا unique_id إذا لم يكن موجودًا
             if unique_id not in send_locks:
@@ -260,6 +248,22 @@ async def send_video(query, video_path):
 
     except Exception as e:
         await query.message.reply_text(f"❌ حدث خطأ أثناء إرسال الفيديو: {str(e)}")
+
+async def send_video_after_ad(update: Update, context: CallbackContext):
+    query = update.callback_query
+    await query.answer()
+    
+    _, unique_id = query.data.split("|")
+    video_path = f"downloads/{unique_id}.mp4"
+
+    if not os.path.exists(video_path):
+        await query.edit_message_text("⚠ الملف غير موجود أو تم حذفه!")
+        return
+
+    await query.edit_message_text("📤 جارٍ إرسال الفيديو... ⏳")
+
+    await send_video(query, video_path)
+        
 
 
 
@@ -349,7 +353,7 @@ def main():
     app.add_handler(CallbackQueryHandler(download_audio, pattern="audio.*"))
     app.add_handler(CallbackQueryHandler(cancel_download, pattern="cancel_download"))
 
-    app.add_handler(CallbackQueryHandler(ad_done, pattern="ad_done.*"))
+    app.add_handler(CallbackQueryHandler(send_video_after_ad, pattern="send_video.*"))
 
 
     print("✅ البوت يعمل الآن...")
