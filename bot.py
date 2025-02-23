@@ -303,6 +303,7 @@ async def watch_ad_and_send_video(update: Update, context: CallbackContext):
     await query.message.reply_text("✅ بعد مشاهدة الإعلان، اضغط على الزر لإرسال الفيديو:", reply_markup=reply_markup)
 
 
+
 # 🎵 تحميل الصوت
 async def download_audio(update: Update, context: CallbackContext):
     query = update.callback_query
@@ -312,13 +313,10 @@ async def download_audio(update: Update, context: CallbackContext):
     url = link_storage.get(unique_id)
 
     if not url:
-        await query.edit_message_text("⚠ الرابط غير صالح أو انتهت صلاحيته!")
-        return
+        await query.edit_message_text("⏳ جارٍ تحميل الصوت، الرجاء الانتظار...")
 
-    await query.edit_message_text("⏳ جارٍ تحميل الصوت، الرجاء الانتظار...")
-
-    output_audio = "downloads/audio"
-    final_audio = "downloads/final_audio.mp3"
+    output_audio = f"downloads/audio"
+    final_audio = f"downloads/{unique_id}.mp3"  # تعديل الاسم ليكون فريدًا لكل تحميل
 
     for file in [output_audio + ".mp3", output_audio + ".m4a", final_audio]:
         if os.path.exists(file):
@@ -354,19 +352,77 @@ async def download_audio(update: Update, context: CallbackContext):
         os.rename(downloaded_audio, final_audio)
 
         if os.path.exists(final_audio) and os.path.getsize(final_audio) > 100 * 1024:
-            await query.edit_message_text("✅ تم تحميل الصوت! جارٍ الإرسال... 🎵")
-            with open(final_audio, "rb") as audio_file:
-                await query.message.reply_audio(audio=audio_file)
-        else:
-            raise Exception("⚠ الملف صغير جدًا أو غير صالح للإرسال!")
+            await query.edit_message_text("✅ تم تحميل الصوت! قبل الإرسال، يرجى مشاهدة الإعلان.")
+
+            keyboard = [
+                [InlineKeyboardButton("👀 مشاهدة إعلان قبل الإرسال", callback_data=f"watch_ad_audio|{unique_id}")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            await query.message.reply_text("🔽 لمتابعة استلام الصوت، يرجى مشاهدة الإعلان:", reply_markup=reply_markup)
+
+            # ✅ تسجيل أن المستخدم لم يشاهد الإعلان بعد
+            watched_ads[unique_id] = False  
 
     except Exception as e:
         await query.edit_message_text(f"❌ حدث خطأ أثناء تحميل الصوت: {str(e)}")
         log_error(f"Error downloading audio: {e}")
 
-    finally:
-        if os.path.exists(final_audio):
-            os.remove(final_audio)
+
+# 📤 إرسال الصوت بعد مشاهدة الإعلان
+async def send_audio_after_ad(update: Update, context: CallbackContext):
+    query = update.callback_query
+    await query.answer()
+    
+    _, unique_id = query.data.split("|")
+    audio_path = f"downloads/{unique_id}.mp3"
+
+    if not os.path.exists(audio_path):
+        await query.edit_message_text("⚠ الملف غير موجود أو تم حذفه!")
+        return
+
+    # **تحقق مما إذا كان المستخدم قد ضغط على "تم مشاهدة الإعلان"**
+    if watched_ads.get(unique_id, False):
+        await query.edit_message_text("📤 جارٍ إرسال الصوت... ⏳")
+        
+        try:
+            with open(audio_path, "rb") as audio_file:
+                await query.message.reply_audio(audio=audio_file)
+
+            await asyncio.sleep(2)  # تأخير بسيط لمنع الحظر
+            await query.message.reply_text("✅ تم إرسال الصوت بنجاح! 🎉")
+
+        except Exception as e:
+            await query.message.reply_text(f"❌ حدث خطأ أثناء إرسال الصوت: {str(e)}")
+
+    else:
+        await query.message.reply_text("⚠ يجب مشاهدة الإعلان قبل استلام الصوت!")
+
+
+# 📺 مطالبة المستخدم بمشاهدة الإعلان قبل إرسال الصوت
+async def watch_ad_and_send_audio(update: Update, context: CallbackContext):
+    query = update.callback_query
+    await query.answer()
+
+    _, unique_id = query.data.split("|")
+
+    # ✅ تسجيل أن المستخدم قد ضغط على مشاهدة الإعلان
+    watched_ads[unique_id] = True  
+
+    # إرسال رابط الإعلان
+    await query.message.reply_text(f"🔗 اضغط على الرابط لمشاهدة الإعلان: {ADSTERRE_AD_URL}")
+
+    # إظهار زر "تم مشاهدة الإعلان" بعد 13 ثانية
+    await asyncio.sleep(13)
+
+    keyboard = [
+        [InlineKeyboardButton("✅ تم مشاهدة الإعلان، أرسل الصوت", callback_data=f"send_audio|{unique_id}")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.message.reply_text("✅ بعد مشاهدة الإعلان، اضغط على الزر لإرسال الصوت:", reply_markup=reply_markup)
+
+
 
 # ❌ إلغاء التحميل
 async def cancel_download(update: Update, context: CallbackContext):
@@ -390,6 +446,9 @@ def main():
     app.add_handler(CallbackQueryHandler(cancel_download, pattern="cancel_download"))
     app.add_handler(CallbackQueryHandler(watch_ad_and_send_video, pattern="watch_ad.*"))
     app.add_handler(CallbackQueryHandler(send_video_after_ad, pattern="send_video.*"))
+    app.add_handler(CallbackQueryHandler(watch_ad_and_send_audio, pattern="watch_ad_audio.*"))
+    app.add_handler(CallbackQueryHandler(send_audio_after_ad, pattern="send_audio.*"))
+
 
 
 
