@@ -293,7 +293,7 @@ async def watch_ad_and_send_video(update: Update, context: CallbackContext):
     await query.message.reply_text(f"🔗 اضغط على الرابط لمشاهدة الإعلان: {ADSTERRE_AD_URL}")
 
     # إظهار زر "تم مشاهدة الإعلان" بعد 10 ثوانٍ
-    await asyncio.sleep(20)
+    await asyncio.sleep(13)
 
     keyboard = [
         [InlineKeyboardButton("✅ تم مشاهدة الإعلان، أرسل الفيديو", callback_data=f"send_video|{unique_id}")]
