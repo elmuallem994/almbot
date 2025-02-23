@@ -42,6 +42,8 @@ def upload_to_google_drive(file_path, file_name):
 
 # 🔹 ضع هنا توكن البوت الخاص بك
 TOKEN = "8012936074:AAFH1E_EkUgnoXG_kz-nTvnbLnvcezTpgcg"
+ 
+watched_ads = {}  # تخزين حالة المستخدمين الذين ضغطوا على زر مشاهدة الإعلان
 
 
 # ✅ تخزين الروابط لمنع فقدان البيانات أثناء التحميل
@@ -191,8 +193,9 @@ async def handle_video_download(query, url, unique_id):
           
 
             keyboard = [
-               [InlineKeyboardButton("👀 مشاهدة إعلان قبل الإرسال", callback_data=f"watch_ad|{unique_id}")]
+                [InlineKeyboardButton("👀 مشاهدة إعلان قبل الإرسال", callback_data=f"watch_ad|{unique_id}")]
             ]
+
 
             reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -276,16 +279,23 @@ async def watch_ad_and_send_video(update: Update, context: CallbackContext):
         await query.edit_message_text("⚠ الملف غير موجود أو تم حذفه!")
         return
 
-    # إرسال رابط الإعلان
+    # تسجيل أن المستخدم ضغط على الإعلان
+    watched_ads[unique_id] = True
+
+    # إرسال رابط الإعلان للمستخدم
     await query.message.reply_text(f"🔗 اضغط على الرابط لمشاهدة الإعلان: {ADSTERRE_AD_URL}")
 
     await query.edit_message_text("⏳ يرجى الانتظار 10 ثوانٍ بعد مشاهدة الإعلان...")
 
-    await asyncio.sleep(10)  # انتظار 10 ثوانٍ قبل إرسال الفيديو بعد النقر
+    # انتظار 10 ثوانٍ
+    await asyncio.sleep(10)
 
-    await query.message.reply_text("📤 جارٍ إرسال الفيديو... ⏳")
-
-    await send_video(query, video_path)
+    # تحقق مما إذا كان المستخدم قد شاهد الإعلان
+    if watched_ads.get(unique_id, False):
+        await query.message.reply_text("📤 جارٍ إرسال الفيديو... ⏳")
+        await send_video(query, video_path)
+    else:
+        await query.message.reply_text("⚠ لم يتم تأكيد مشاهدة الإعلان! يرجى المحاولة مرة أخرى.")
 
 
 
@@ -376,6 +386,7 @@ def main():
     app.add_handler(CallbackQueryHandler(cancel_download, pattern="cancel_download"))
 
     app.add_handler(CallbackQueryHandler(watch_ad_and_send_video, pattern="watch_ad.*"))
+
 
 
 
