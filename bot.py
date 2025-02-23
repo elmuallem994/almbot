@@ -312,21 +312,25 @@ async def download_audio(update: Update, context: CallbackContext):
     url = link_storage.get(unique_id)
 
     if not url:
-        await query.edit_message_text("⏳ جارٍ تحميل الصوت، الرجاء الانتظار...")
+        await query.edit_message_text("⚠ الرابط غير صالح أو انتهت صلاحيته!")
+        return
 
-    output_audio = f"downloads/audio"
-    final_audio = f"downloads/{unique_id}.mp3"  # تعديل الاسم ليكون فريدًا لكل تحميل
+    await query.edit_message_text("⏳ جارٍ تحميل الصوت، الرجاء الانتظار...")
 
-    for file in [output_audio + ".mp3", output_audio + ".m4a", final_audio]:
-        if os.path.exists(file):
-            os.remove(file)
+    output_audio = f"downloads/{unique_id}.%(ext)s"
+    final_audio = f"downloads/{unique_id}.mp3"
+
+    # ✅ حذف أي ملفات سابقة بنفس الـ ID قبل التحميل
+    for file in os.listdir("downloads"):
+        if file.startswith(unique_id):
+            os.remove(os.path.join("downloads", file))
 
     ydl_opts = {
         "format": "bestaudio/best",
-        "outtmpl": output_audio,  
+        "outtmpl": output_audio,
         "postprocessors": [
             {"key": "FFmpegExtractAudio", "preferredcodec": "mp3"},
-            {"key": "FFmpegMetadata"}  
+            {"key": "FFmpegMetadata"}
         ]
     }
 
@@ -336,16 +340,21 @@ async def download_audio(update: Update, context: CallbackContext):
 
         await asyncio.sleep(1.5)
 
-        downloaded_files = [f for f in os.listdir("downloads") if f.startswith("audio") and f.endswith((".mp3", ".m4a", ".webm"))]
+        # ✅ طباعة الملفات بعد التحميل
+        print("📂 الملفات الموجودة في مجلد التحميل:", os.listdir("downloads"))
+
+        # 🔍 البحث عن الملفات المحملة التي تبدأ بـ unique_id
+        downloaded_files = [f for f in os.listdir("downloads") if f.startswith(unique_id)]
         if not downloaded_files:
             raise Exception("⚠ لم يتم العثور على الملف الصوتي بعد التحميل!")
 
         downloaded_audio = os.path.join("downloads", downloaded_files[0])
 
+        # ✅ تحويل الملف إلى MP3 إذا لم يكن بصيغة MP3
         if not downloaded_audio.endswith(".mp3"):
             converted_audio = downloaded_audio.rsplit(".", 1)[0] + ".mp3"
             os.system(f'ffmpeg -i "{downloaded_audio}" -vn -acodec libmp3lame "{converted_audio}" -y')
-            os.remove(downloaded_audio)
+            os.remove(downloaded_audio)  # حذف الملف الأصلي فقط بعد نجاح التحويل
             downloaded_audio = converted_audio
 
         os.rename(downloaded_audio, final_audio)
@@ -368,11 +377,6 @@ async def download_audio(update: Update, context: CallbackContext):
         log_error(f"Error downloading audio: {e}")
 
 
-    finally:
-        if os.path.exists(final_audio):
-            os.remove(final_audio)
-
-
 # 📤 إرسال الصوت بعد مشاهدة الإعلان
 async def send_audio_after_ad(update: Update, context: CallbackContext):
     query = update.callback_query
@@ -385,7 +389,7 @@ async def send_audio_after_ad(update: Update, context: CallbackContext):
         await query.edit_message_text("⚠ الملف غير موجود أو تم حذفه!")
         return
 
-    # **تحقق مما إذا كان المستخدم قد ضغط على "تم مشاهدة الإعلان"**
+    # ✅ التحقق مما إذا كان المستخدم قد ضغط على "تم مشاهدة الإعلان"
     if watched_ads.get(unique_id, False):
         await query.edit_message_text("📤 جارٍ إرسال الصوت... ⏳")
         
@@ -401,7 +405,6 @@ async def send_audio_after_ad(update: Update, context: CallbackContext):
 
     else:
         await query.message.reply_text("⚠ يجب مشاهدة الإعلان قبل استلام الصوت!")
-
 
 
 # 📺 مطالبة المستخدم بمشاهدة الإعلان قبل إرسال الصوت
