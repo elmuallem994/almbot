@@ -5,6 +5,7 @@ import os
 import uuid
 import asyncio
 import requests
+import re
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -48,6 +49,20 @@ send_locks = {}
 async def start(update: Update, context: CallbackContext) -> None:
     await update.message.reply_text("👋 أهلاً بك! أرسل لي رابط فيديو وسأقوم بتحميله لك.")
 
+       # 🔍 دالة لتحويل روابط YouTube إلى الصيغة المختصرة youtu.be
+def convert_youtube_url(url):
+    youtube_regex = (
+        r"(?:https?://)?(?:www\.)?"
+        r"(?:youtube\.com/(?:watch\?v=|shorts/|embed/)|youtu\.be/)"
+        r"([a-zA-Z0-9_-]{11})"
+    )
+    match = re.search(youtube_regex, url)
+    if match:
+        video_id = match.group(1)
+        return f"https://youtu.be/{video_id}"
+    return url  # إذا لم يكن الرابط صحيحًا، نعيده كما هو
+
+
 # 🔍 دالة لفك اختصار روابط Pinterest
 def expand_pinterest_url(short_url):
     try:
@@ -55,10 +70,18 @@ def expand_pinterest_url(short_url):
         return response.url  # الحصول على الرابط الحقيقي بعد إعادة التوجيه
     except requests.RequestException as e:
         return None
+    
+
+
+ 
 
 # 📥 استقبال الروابط وتحليلها
 async def receive_link(update: Update, context: CallbackContext) -> None:
     url = update.message.text.strip()
+
+      # تحويل روابط YouTube إلى الصيغة المختصرة
+    if "youtube.com" in url or "youtu.be" in url:
+        url = convert_youtube_url(url)
 
     # 🔹 إذا كان الرابط من Pinterest ولكنه مختصر، قم بفك الاختصار
     if "pin.it" in url:
@@ -123,8 +146,8 @@ async def handle_video_download(query, url, unique_id):
         "no-check-certificate": True,  # تجاوز مشاكل الشهادات
         "sleep_interval": 2,  # تقليل سرعة الطلبات لمنع الحظر
         "max_sleep_interval": 5,
-        "noplaylist": True,  # تعطيل التحميل التلقائي لقوائم التشغيل
-        "headers": {"User-Agent": "Mozilla/5.0 (Linux; Android 10; Mobile)"},
+        "headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+        "progress_hooks": [lambda d: print(d)],  # تتبع التحميل
 
 
      }
