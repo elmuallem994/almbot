@@ -317,15 +317,11 @@ async def download_audio(update: Update, context: CallbackContext):
 
     await query.edit_message_text("⏳ جارٍ تحميل الصوت، الرجاء الانتظار...")
 
-    output_audio = f"downloads/{unique_id}.mp3"
-
-    # ✅ حذف أي ملفات صوتية قديمة بنفس الـ ID قبل التحميل
-    if os.path.exists(output_audio):
-        os.remove(output_audio)
+    output_audio = f"downloads/{unique_id}.%(ext)s"
 
     ydl_opts = {
         "format": "bestaudio/best",
-        "outtmpl": output_audio,  
+        "outtmpl": output_audio,
         "postprocessors": [
             {"key": "FFmpegExtractAudio", "preferredcodec": "mp3"},
             {"key": "FFmpegMetadata"}  
@@ -336,8 +332,16 @@ async def download_audio(update: Update, context: CallbackContext):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        # ✅ التأكد من أن الملف الصوتي قد تم تحميله بنجاح
-        if os.path.exists(output_audio) and os.path.getsize(output_audio) > 100 * 1024:
+        await asyncio.sleep(1.5)
+
+        # 🔍 البحث عن الملفات المحملة التي تبدأ بـ unique_id
+        downloaded_files = [f for f in os.listdir("downloads") if f.startswith(unique_id) and f.endswith(".mp3")]
+        if not downloaded_files:
+            raise Exception("⚠ لم يتم العثور على الملف الصوتي بعد التحميل!")
+
+        final_audio = os.path.join("downloads", downloaded_files[0])
+
+        if os.path.exists(final_audio) and os.path.getsize(final_audio) > 100 * 1024:
             await query.edit_message_text("✅ تم تحميل الصوت! قبل الإرسال، يرجى مشاهدة الإعلان.")
 
             keyboard = [
@@ -347,7 +351,6 @@ async def download_audio(update: Update, context: CallbackContext):
 
             await query.message.reply_text("🔽 لمتابعة استلام الصوت، يرجى مشاهدة الإعلان:", reply_markup=reply_markup)
 
-            # ✅ تسجيل أن المستخدم لم يشاهد الإعلان بعد
             watched_ads[unique_id] = False  
 
     except Exception as e:
