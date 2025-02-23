@@ -303,7 +303,6 @@ async def watch_ad_and_send_video(update: Update, context: CallbackContext):
     await query.message.reply_text("✅ بعد مشاهدة الإعلان، اضغط على الزر لإرسال الفيديو:", reply_markup=reply_markup)
 
 
-
 # 🎵 تحميل الصوت
 async def download_audio(update: Update, context: CallbackContext):
     query = update.callback_query
@@ -315,7 +314,7 @@ async def download_audio(update: Update, context: CallbackContext):
     if not url:
         await query.edit_message_text("⏳ جارٍ تحميل الصوت، الرجاء الانتظار...")
 
-    output_audio = f"downloads/audio"
+    output_audio = f"downloads/{unique_id}"
     final_audio = f"downloads/{unique_id}.mp3"  # تعديل الاسم ليكون فريدًا لكل تحميل
 
     for file in [output_audio + ".mp3", output_audio + ".m4a", final_audio]:
@@ -369,6 +368,8 @@ async def download_audio(update: Update, context: CallbackContext):
         log_error(f"Error downloading audio: {e}")
 
 
+  
+
 # 📤 إرسال الصوت بعد مشاهدة الإعلان
 async def send_audio_after_ad(update: Update, context: CallbackContext):
     query = update.callback_query
@@ -397,6 +398,7 @@ async def send_audio_after_ad(update: Update, context: CallbackContext):
 
     else:
         await query.message.reply_text("⚠ يجب مشاهدة الإعلان قبل استلام الصوت!")
+
 
 
 # 📺 مطالبة المستخدم بمشاهدة الإعلان قبل إرسال الصوت
@@ -446,8 +448,9 @@ def main():
     app.add_handler(CallbackQueryHandler(cancel_download, pattern="cancel_download"))
     app.add_handler(CallbackQueryHandler(watch_ad_and_send_video, pattern="watch_ad.*"))
     app.add_handler(CallbackQueryHandler(send_video_after_ad, pattern="send_video.*"))
-    app.add_handler(CallbackQueryHandler(watch_ad_and_send_audio, pattern="watch_ad_audio.*"))
     app.add_handler(CallbackQueryHandler(send_audio_after_ad, pattern="send_audio.*"))
+    app.add_handler(CallbackQueryHandler(watch_ad_and_send_audio, pattern="watch_ad_audio.*"))
+    
 
 
 
