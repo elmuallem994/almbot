@@ -193,7 +193,7 @@ async def handle_video_download(query, url, unique_id):
           
 
             keyboard = [
-                [InlineKeyboardButton("👀 مشاهدة إعلان قبل الإرسال", callback_data=f"watch_ad|{unique_id}")]
+                 [InlineKeyboardButton("👀 مشاهدة إعلان قبل الإرسال", callback_data=f"watch_ad|{unique_id}")]
             ]
 
 
@@ -263,21 +263,19 @@ async def send_video_after_ad(update: Update, context: CallbackContext):
         await query.edit_message_text("⚠ الملف غير موجود أو تم حذفه!")
         return
 
-    await query.edit_message_text("📤 جارٍ إرسال الفيديو... ⏳")
-
-    await send_video(query, video_path)
-        
+    # التحقق مما إذا كان المستخدم قد ضغط على زر مشاهدة الإعلان
+    if watched_ads.get(unique_id, False):
+        await query.edit_message_text("📤 جارٍ إرسال الفيديو... ⏳")
+        await send_video(query, video_path)
+    else:
+        await query.edit_message_text("⚠ يجب مشاهدة الإعلان قبل استلام الفيديو!")
+       
 
 async def watch_ad_and_send_video(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
 
     _, unique_id = query.data.split("|")
-    video_path = f"downloads/{unique_id}.mp4"
-
-    if not os.path.exists(video_path):
-        await query.edit_message_text("⚠ الملف غير موجود أو تم حذفه!")
-        return
 
     # تسجيل أن المستخدم ضغط على الإعلان
     watched_ads[unique_id] = True
@@ -285,17 +283,15 @@ async def watch_ad_and_send_video(update: Update, context: CallbackContext):
     # إرسال رابط الإعلان للمستخدم
     await query.message.reply_text(f"🔗 اضغط على الرابط لمشاهدة الإعلان: {ADSTERRE_AD_URL}")
 
-    await query.edit_message_text("⏳ يرجى الانتظار 10 ثوانٍ بعد مشاهدة الإعلان...")
+    # إظهار زر تأكيد المشاهدة بعد فترة قصيرة
+    keyboard = [
+        [InlineKeyboardButton("✅ تم مشاهدة الإعلان، أرسل الفيديو", callback_data=f"send_video|{unique_id}")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # انتظار 10 ثوانٍ
-    await asyncio.sleep(10)
+    await asyncio.sleep(10)  # انتظار 10 ثوانٍ (وقت افتراضي لمشاهدة الإعلان)
 
-    # تحقق مما إذا كان المستخدم قد شاهد الإعلان
-    if watched_ads.get(unique_id, False):
-        await query.message.reply_text("📤 جارٍ إرسال الفيديو... ⏳")
-        await send_video(query, video_path)
-    else:
-        await query.message.reply_text("⚠ لم يتم تأكيد مشاهدة الإعلان! يرجى المحاولة مرة أخرى.")
+    await query.message.reply_text("✅ بعد مشاهدة الإعلان، اضغط على الزر لإرسال الفيديو:", reply_markup=reply_markup)
 
 
 
@@ -385,7 +381,8 @@ def main():
     app.add_handler(CallbackQueryHandler(download_audio, pattern="audio.*"))
     app.add_handler(CallbackQueryHandler(cancel_download, pattern="cancel_download"))
 
-    app.add_handler(CallbackQueryHandler(watch_ad_and_send_video, pattern="watch_ad.*"))
+    app.add_handler(CallbackQueryHandler(send_video_after_ad, pattern="send_video.*"))
+
 
 
 
