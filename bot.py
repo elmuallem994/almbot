@@ -293,7 +293,7 @@ async def watch_ad_and_send_video(update: Update, context: CallbackContext):
     await query.message.reply_text(f"🔗 اضغط على الرابط لمشاهدة الإعلان: {ADSTERRE_AD_URL}")
 
     # إظهار زر "تم مشاهدة الإعلان" بعد 10 ثوانٍ
-    await asyncio.sleep(13)
+    await asyncio.sleep(10)
 
     keyboard = [
         [InlineKeyboardButton("✅ تم مشاهدة الإعلان، أرسل الفيديو", callback_data=f"send_video|{unique_id}")]
@@ -317,20 +317,18 @@ async def download_audio(update: Update, context: CallbackContext):
 
     await query.edit_message_text("⏳ جارٍ تحميل الصوت، الرجاء الانتظار...")
 
-    output_audio = f"downloads/{unique_id}.%(ext)s"  # حفظ باسم مميز
-    final_audio = f"downloads/{unique_id}.mp3"
+    output_audio = f"downloads/{unique_id}.mp3"
 
-    # حذف أي ملفات قديمة بنفس الـ ID قبل التحميل
-    for file in os.listdir("downloads"):
-        if file.startswith(unique_id):
-            os.remove(os.path.join("downloads", file))
+    # ✅ حذف أي ملفات صوتية قديمة بنفس الـ ID قبل التحميل
+    if os.path.exists(output_audio):
+        os.remove(output_audio)
 
     ydl_opts = {
         "format": "bestaudio/best",
-        "outtmpl": output_audio,
+        "outtmpl": output_audio,  
         "postprocessors": [
             {"key": "FFmpegExtractAudio", "preferredcodec": "mp3"},
-            {"key": "FFmpegMetadata"}
+            {"key": "FFmpegMetadata"}  
         ]
     }
 
@@ -338,46 +336,22 @@ async def download_audio(update: Update, context: CallbackContext):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        await asyncio.sleep(1.5)
+        # ✅ التأكد من أن الملف الصوتي قد تم تحميله بنجاح
+        if os.path.exists(output_audio) and os.path.getsize(output_audio) > 100 * 1024:
+            await query.edit_message_text("✅ تم تحميل الصوت بنجاح! ⏳ جارٍ الإرسال... 🎵")
 
-        # ✅ التأكد من وجود الملف بعد التحميل
-        print("📂 الملفات الموجودة في مجلد التحميل:", os.listdir("downloads"))
+            with open(output_audio, "rb") as audio_file:
+                await query.message.reply_audio(audio=audio_file)
 
-        # البحث عن الملفات المحملة التي تبدأ بـ unique_id
-        downloaded_files = [f for f in os.listdir("downloads") if f.startswith(unique_id)]
-        if not downloaded_files:
-            raise Exception("⚠ لم يتم العثور على الملف الصوتي بعد التحميل!")
+            await query.message.reply_text("✅ تم إرسال الصوت بنجاح! 🎉")
 
-        downloaded_audio = os.path.join("downloads", downloaded_files[0])
-
-        # ✅ تحويل الملف إلى MP3 إذا لم يكن بصيغة MP3
-        if not downloaded_audio.endswith(".mp3"):
-            converted_audio = downloaded_audio.rsplit(".", 1)[0] + ".mp3"
-            os.system(f'ffmpeg -i "{downloaded_audio}" -vn -acodec libmp3lame "{converted_audio}" -y')
-            os.remove(downloaded_audio)  # حذف الملف الأصلي فقط بعد نجاح التحويل
-            downloaded_audio = converted_audio
-
-        os.rename(downloaded_audio, final_audio)
-
-        if os.path.exists(final_audio) and os.path.getsize(final_audio) > 100 * 1024:
-            await query.edit_message_text("✅ تم تحميل الصوت! قبل الإرسال، يرجى مشاهدة الإعلان.")
-
-            keyboard = [
-                [InlineKeyboardButton("👀 مشاهدة إعلان قبل الإرسال", callback_data=f"watch_ad_audio|{unique_id}")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-
-            await query.message.reply_text("🔽 لمتابعة استلام الصوت، يرجى مشاهدة الإعلان:", reply_markup=reply_markup)
-
-            # ✅ تسجيل أن المستخدم لم يشاهد الإعلان بعد
-            watched_ads[unique_id] = False  
+        else:
+            await query.edit_message_text("⚠ لم يتم العثور على الملف الصوتي بعد التحميل!")
 
     except Exception as e:
         await query.edit_message_text(f"❌ حدث خطأ أثناء تحميل الصوت: {str(e)}")
-        log_error(f"Error downloading audio: {e}")
 
 
-# 📤 إرسال الصوت بعد مشاهدة الإعلان
 async def send_audio_after_ad(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
@@ -385,7 +359,6 @@ async def send_audio_after_ad(update: Update, context: CallbackContext):
     _, unique_id = query.data.split("|")
     audio_path = f"downloads/{unique_id}.mp3"
 
-    # ✅ التحقق من وجود الملف قبل إرساله
     if not os.path.exists(audio_path):
         await query.edit_message_text("⚠ الملف غير موجود أو تم حذفه!")
         return
@@ -407,7 +380,6 @@ async def send_audio_after_ad(update: Update, context: CallbackContext):
         await query.message.reply_text("⚠ يجب مشاهدة الإعلان قبل استلام الصوت!")
 
 
-# 📺 مطالبة المستخدم بمشاهدة الإعلان قبل إرسال الصوت
 async def watch_ad_and_send_audio(update: Update, context: CallbackContext):
     query = update.callback_query
     await query.answer()
@@ -420,8 +392,8 @@ async def watch_ad_and_send_audio(update: Update, context: CallbackContext):
     # إرسال رابط الإعلان
     await query.message.reply_text(f"🔗 اضغط على الرابط لمشاهدة الإعلان: {ADSTERRE_AD_URL}")
 
-    # إظهار زر "تم مشاهدة الإعلان" بعد 13 ثانية
-    await asyncio.sleep(13)
+    # إظهار زر "تم مشاهدة الإعلان" بعد 10 ثوانٍ
+    await asyncio.sleep(10)
 
     keyboard = [
         [InlineKeyboardButton("✅ تم مشاهدة الإعلان، أرسل الصوت", callback_data=f"send_audio|{unique_id}")]
@@ -454,10 +426,6 @@ def main():
     app.add_handler(CallbackQueryHandler(cancel_download, pattern="cancel_download"))
     app.add_handler(CallbackQueryHandler(watch_ad_and_send_video, pattern="watch_ad.*"))
     app.add_handler(CallbackQueryHandler(send_video_after_ad, pattern="send_video.*"))
-    app.add_handler(CallbackQueryHandler(send_audio_after_ad, pattern="send_audio.*"))
-    app.add_handler(CallbackQueryHandler(watch_ad_and_send_audio, pattern="watch_ad_audio.*"))
-    
-
 
 
 
