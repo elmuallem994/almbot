@@ -322,10 +322,10 @@ async def download_audio(update: Update, context: CallbackContext):
 
     ydl_opts = {
         "format": "bestaudio/best",
-        "outtmpl": output_audio,  
+        "outtmpl": output_audio,
         "postprocessors": [
             {"key": "FFmpegExtractAudio", "preferredcodec": "mp3"},
-            {"key": "FFmpegMetadata"}  
+            {"key": "FFmpegMetadata"}
         ]
     }
 
@@ -335,7 +335,7 @@ async def download_audio(update: Update, context: CallbackContext):
 
         await asyncio.sleep(1.5)
 
-        # 🔍 البحث عن الملفات المحملة التي تبدأ بـ unique_id
+        # 🔍 البحث عن الملفات المحملة
         downloaded_files = [f for f in os.listdir("downloads") if f.startswith(unique_id) and f.endswith(".mp3")]
         if not downloaded_files:
             raise Exception("⚠ لم يتم العثور على الملف الصوتي بعد التحميل!")
@@ -352,6 +352,7 @@ async def download_audio(update: Update, context: CallbackContext):
 
             await query.message.reply_text("🔽 لمتابعة استلام الصوت، يرجى مشاهدة الإعلان:", reply_markup=reply_markup)
 
+            # ✅ تأكد من عدم حذف الملف حتى يتم إرساله
             watched_ads[unique_id] = False  
 
     except Exception as e:
@@ -390,7 +391,6 @@ async def send_audio_after_ad(update: Update, context: CallbackContext):
 
     else:
         await query.message.reply_text("⚠ يجب مشاهدة الإعلان قبل استلام الصوت!")
-
 
 # 📺 مطالبة المستخدم بمشاهدة الإعلان قبل إرسال الصوت
 async def watch_ad_and_send_audio(update: Update, context: CallbackContext):
