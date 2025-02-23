@@ -1,6 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, CallbackContext, filters
 import yt_dlp
+from dotenv import load_dotenv
 import os
 import uuid
 import asyncio
@@ -11,8 +12,18 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 
-# 🔹 رابط الإعلان (استبدله برابط Adsterra أو أي شبكة إعلانية أخرى)
-ADSTERRE_AD_URL = "https://www.effectiveratecpm.com/r50q8hi2?key=1f0319a4e683d308280685eab9185fd3"
+# تحميل المتغيرات من ملف .env
+load_dotenv()
+
+# 🔹 استخدام المتغيرات من ملف .env
+TOKEN = os.getenv("TOKEN")
+ADSTERRE_AD_URL = os.getenv("ADSTERRE_AD_URL")
+
+# 🔹 التحقق من تحميل المتغيرات بشكل صحيح
+if not TOKEN:
+    raise ValueError("❌ لم يتم تحميل TOKEN من ملف .env!")
+if not ADSTERRE_AD_URL:
+    raise ValueError("❌ لم يتم تحميل ADSTERRE_AD_URL من ملف .env!")
 
 
 # 🛠️ تحميل الفيديو إلى Google Drive والحصول على رابط المشاركة
@@ -40,8 +51,7 @@ def upload_to_google_drive(file_path, file_name):
     return file_link
 
 
-# 🔹 ضع هنا توكن البوت الخاص بك
-TOKEN = "8012936074:AAFH1E_EkUgnoXG_kz-nTvnbLnvcezTpgcg"
+
  
 watched_ads = {}  # تخزين حالة المستخدمين الذين ضغطوا على زر مشاهدة الإعلان
 
@@ -283,7 +293,7 @@ async def watch_ad_and_send_video(update: Update, context: CallbackContext):
     await query.message.reply_text(f"🔗 اضغط على الرابط لمشاهدة الإعلان: {ADSTERRE_AD_URL}")
 
     # إظهار زر "تم مشاهدة الإعلان" بعد 10 ثوانٍ
-    await asyncio.sleep(10)
+    await asyncio.sleep(20)
 
     keyboard = [
         [InlineKeyboardButton("✅ تم مشاهدة الإعلان، أرسل الفيديو", callback_data=f"send_video|{unique_id}")]
