@@ -191,8 +191,9 @@ async def handle_video_download(query, url, unique_id):
           
 
             keyboard = [
-                [InlineKeyboardButton("👀 مشاهدة إعلان قبل الإرسال", url=ADSTERRE_AD_URL, callback_data=f"watch_ad|{unique_id}")]
+               [InlineKeyboardButton("👀 مشاهدة إعلان قبل الإرسال", callback_data=f"watch_ad|{unique_id}")]
             ]
+
             reply_markup = InlineKeyboardMarkup(keyboard)
 
             await query.message.reply_text("🔽 لمتابعة استلام الفيديو، يرجى مشاهدة الإعلان:", reply_markup=reply_markup)
@@ -275,11 +276,14 @@ async def watch_ad_and_send_video(update: Update, context: CallbackContext):
         await query.edit_message_text("⚠ الملف غير موجود أو تم حذفه!")
         return
 
-    await query.edit_message_text("⏳ يرجى الانتظار قليلًا بعد مشاهدة الإعلان...")
+    # إرسال رابط الإعلان
+    await query.message.reply_text(f"🔗 اضغط على الرابط لمشاهدة الإعلان: {ADSTERRE_AD_URL}")
 
-    await asyncio.sleep(10)  # انتظار 10 ثوانٍ قبل إرسال الفيديو بعد النقر على الإعلان
+    await query.edit_message_text("⏳ يرجى الانتظار 10 ثوانٍ بعد مشاهدة الإعلان...")
 
-    await query.edit_message_text("📤 جارٍ إرسال الفيديو... ⏳")
+    await asyncio.sleep(10)  # انتظار 10 ثوانٍ قبل إرسال الفيديو بعد النقر
+
+    await query.message.reply_text("📤 جارٍ إرسال الفيديو... ⏳")
 
     await send_video(query, video_path)
 
@@ -372,6 +376,7 @@ def main():
     app.add_handler(CallbackQueryHandler(cancel_download, pattern="cancel_download"))
 
     app.add_handler(CallbackQueryHandler(watch_ad_and_send_video, pattern="watch_ad.*"))
+
 
 
 
