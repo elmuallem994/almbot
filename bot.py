@@ -133,7 +133,7 @@ async def handle_video_download(query, url, unique_id):
      # ✅ تحديد تنسيق الجودة بناءً على المنصة
     if "youtube.com" in url or "youtu.be" in url:
      ydl_opts = {
-        "format": "bestvideo[height<=480]+bestaudio/best[height<=480]",  # تحميل بجودة 480p فقط
+        "format": "bestvideo+bestaudio/best",  # تحميل بجودة 480p فقط
         "merge_output_format": "mp4",
         "outtmpl": output_video,
         "socket_timeout": 3600,
@@ -146,7 +146,10 @@ async def handle_video_download(query, url, unique_id):
         "no-check-certificate": True,  # تجاوز مشاكل الشهادات
         "sleep_interval": 2,  # تقليل سرعة الطلبات لمنع الحظر
         "max_sleep_interval": 5,
-        "headers": {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+        "headers": {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
+        },
+
         "progress_hooks": [lambda d: print(d)],  # تتبع التحميل
 
 
