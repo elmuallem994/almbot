@@ -6,6 +6,7 @@ import uuid
 import asyncio
 import requests
 import re
+from pytube import YouTube
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -130,30 +131,26 @@ async def handle_video_download(query, url, unique_id):
     if os.path.exists(output_video):
         os.remove(output_video)
 
-     # ✅ تحديد تنسيق الجودة بناءً على المنصة
+     # ✅ استخدام pytube إذا كان الفيديو من YouTube
     if "youtube.com" in url or "youtu.be" in url:
-     ydl_opts = {
-        "format": "bestvideo+bestaudio/best",  # تحميل بجودة 480p فقط
-        "merge_output_format": "mp4",
-        "outtmpl": output_video,
-        "socket_timeout": 3600,
-        "retries": 30,
-        "fragment_retries": 30,
-        "hls_prefer_native": True,
-        "noplaylist": True,  # تحميل فيديو واحد فقط وليس قائمة تشغيل
-        "force_generic_extractor": True,  # فرض استخدام yt-dlp بدون تسجيل الدخول
-        "quiet": False,  # عرض تفاصيل التحميل
-        "no-check-certificate": True,  # تجاوز مشاكل الشهادات
-        "sleep_interval": 2,  # تقليل سرعة الطلبات لمنع الحظر
-        "max_sleep_interval": 5,
-        "headers": {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36"
-        },
+        try:
+            yt = YouTube(url)
+            stream = yt.streams.filter(progressive=True, file_extension="mp4").first()
+            stream.download(filename=output_video)
 
-        "progress_hooks": [lambda d: print(d)],  # تتبع التحميل
+            if os.path.exists(output_video):
+                await query.edit_message_text("✅ تم تحميل الفيديو من YouTube! جارٍ الإرسال... 📤")
+                await asyncio.sleep(1)
 
+                # ✅ قفل منع الإرسال المتكرر
+                if unique_id not in send_locks:
+                    send_locks[unique_id] = asyncio.Lock()
 
-     }
+                async with send_locks[unique_id]:
+                    await send_video(query, output_video)
+
+        except Exception as e:
+            await query.edit_message_text(f"❌ حدث خطأ أثناء تحميل الفيديو من YouTube: {str(e)}")
 
     elif "facebook.com" in url or "fb.watch" in url:
      ydl_opts = {
